@@ -1,5 +1,5 @@
 import { BrowserProvider, Signer, Contract, formatEther, parseEther } from "ethers";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CONTRACT_ADDRESS } from "../../utils/constants";
 import { toast } from "sonner";
 import Lock_ABI from "../../utils/Lock_ABI.json";
@@ -9,8 +9,10 @@ export const useWalletService = () => {
   let signer: Signer;
   let contract: Contract;
 
-  const [account, setAccount] = useState(null);
-  const [balance, setBalance] = useState(0);
+  const [account, setAccount] = useState<unknown>(null);
+  const [balance, setBalance] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [actionLoading, setActionLoading] = useState<boolean>(false);
 
   const initialize = async () => {
     if (typeof window.ethereum === "undefined") {
@@ -23,6 +25,7 @@ export const useWalletService = () => {
   };
 
   const requestAccount = async () => {
+    setLoading(true);
     try {
       await initialize();
       const accounts = await provider.send("eth_requestAccounts", []);
@@ -30,10 +33,13 @@ export const useWalletService = () => {
     } catch (error) {
       console.error("Error requesting account:", error.message);
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
   const getContractBalanceInETH = async () => {
+    setLoading(true);
     try {
       await initialize();
       const balanceWei: bigint = await provider.getBalance(CONTRACT_ADDRESS);
@@ -41,10 +47,13 @@ export const useWalletService = () => {
       return balanceEth;
     } catch (error) {
       toast.error(error?.reason);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeposit = async (depositValue: string) => {
+    setActionLoading(true);
     try {
       await initialize();
       const ethValue: bigint = parseEther(depositValue);
@@ -52,10 +61,13 @@ export const useWalletService = () => {
       await deposit.wait();
     } catch (error) {
       toast.error(error?.reason);
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleWithdraw = async () => {
+    setActionLoading(true);
     try {
       await initialize();
       const withdrawTx = await contract.withdraw();
@@ -63,8 +75,38 @@ export const useWalletService = () => {
       console.log("Withdrawal successful!");
     } catch (error) {
       toast.error(error?.reason);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  return { account, balance, handleWithdraw, handleDeposit, getContractBalanceInETH, requestAccount };
+  useEffect(() => {
+    const fetchBalance = async () => {
+      const balanceInETH = await getContractBalanceInETH();
+      setBalance(parseInt(balanceInETH as string));
+    };
+    fetchBalance();
+  }, []);
+
+  useEffect(() => {
+    const fetchCurAccount = async () => {
+      const account = await requestAccount();
+      setAccount(account);
+    };
+    fetchCurAccount();
+  }, []);
+
+  useEffect(() => {
+    const handleAccountChanged = (newAccounts: any) => setAccount(newAccounts.length > 0 ? newAccounts[0] : null);
+
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", handleAccountChanged);
+    }
+
+    return () => {
+      window.ethereum?.removeListener("accountsChanged", handleAccountChanged);
+    };
+  });
+
+  return { account, balance, handleWithdraw, handleDeposit, getContractBalanceInETH, requestAccount, loading, actionLoading };
 };
