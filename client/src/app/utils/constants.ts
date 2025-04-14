@@ -1,1 +1,3 @@
 export const BASE_PATH = "/";
+
+export const CONTRACT_ADDRESS = "0xaAF48c4Db859158fBa9b0789eb61392eF1401A80";
