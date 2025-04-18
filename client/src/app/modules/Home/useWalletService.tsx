@@ -38,6 +38,18 @@ export const useWalletService = () => {
     }
   };
 
+  const connectAccount = async () => {
+    setActionLoading(true);
+    try {
+      const userAccount = await requestAccount();
+      setAccount(userAccount);
+    } catch (error) {
+      console.error("Failed to connect wallet: ", error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const getContractBalanceInETH = async () => {
     setLoading(true);
     try {
@@ -108,5 +120,5 @@ export const useWalletService = () => {
     };
   });
 
-  return { account, balance, handleWithdraw, handleDeposit, getContractBalanceInETH, requestAccount, loading, actionLoading };
+  return { account, balance, handleWithdraw, handleDeposit, getContractBalanceInETH, requestAccount, connectAccount, loading, actionLoading };
 };
